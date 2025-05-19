@@ -1,0 +1,45 @@
+name: Deploy to Hetzner
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Build Next.js app
+      run: npm run build
+
+    - name: Copy files to Hetzner server
+      uses: appleboy/scp-action@master
+      with:
+        host: 5.78.106.198
+        username: green
+        key: ${{ secrets.HETZNER_SSH_KEY }}
+        source: ".next,package.json,public,next.config.js"
+        target: "~/Lang-Project"
+
+    - name: SSH and restart app
+      uses: appleboy/ssh-action@master
+      with:
+        host: 5.78.106.198
+        username: lang
+        key: ${{ secrets.HETZNER_SSH_KEY }}
+        script: |
+          cd ~/Lang-Project
+          npm install --omit=dev
+          pm2 delete Lang-Project || true
+          pm2 start "npm start" --name Lang-Project
